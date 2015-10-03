@@ -12,8 +12,11 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
+import android.widget.Button;
+import android.widget.EditText;
 import android.widget.ListAdapter;
 import android.widget.ListView;
+import android.widget.TextView;
 
 import com.feedhenry.sdk.FH;
 import com.feedhenry.sdk.FHActCallback;
@@ -33,10 +36,15 @@ public class MainActivity extends Activity {
 
     private ProgressDialog progressDialog = null;
     private FHSyncClient syncClient = null;
-    private ArrayAdapter<String> adapter = null;
+    private ArrayAdapter<Task> adapter = null;
 
     private static final String DATAID = "tasks";
     private static final String TAG = "datasync";
+
+    private Task selectedTask;
+
+    private EditText editTask;
+    private Button updateButton;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -61,17 +69,38 @@ public class MainActivity extends Activity {
         });
 
         List<String> values = new ArrayList<>();
-        adapter = new ArrayAdapter<String>(this, R.layout.list_item);
+        adapter = new ArrayAdapter<Task>(this, R.layout.list_item);
         ListView listView = (ListView) findViewById(R.id.listView);
         listView.setAdapter(adapter);
         listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
             public void onItemClick(AdapterView<?> parent, final View view, int position, long id) {
-                String item = (String) parent.getItemAtPosition(position);
-                Util.showMessage(that, "ListView", "Selected item: " +item);
+                Task task = (Task) parent.getItemAtPosition(position);
+                editTask.setEnabled(true);
+                editTask.setText(task.getTask());
+                updateButton.setEnabled(true);
+                selectedTask = task;
             }
         });
+        editTask = (EditText) findViewById(R.id.editTask);
+        updateButton = (Button) findViewById(R.id.updateButton);
+        editTask.setEnabled(false);
+        updateButton.setEnabled(false);
+    }
 
+    public void callUpdate(View view)  {
+        String value = editTask.getText().toString();
+        JSONObject json= new JSONObject();
+        json.put("data",value);
+        try {
+            syncClient.update(DATAID, selectedTask.getId(), json);
+        } catch (Exception e) {
+            Log.e("datasync",e.getMessage(),e);
+            Util.showMessage(this, "Error", e.getMessage());
+        }
+        editTask.setText("");
+        editTask.setEnabled(false);
+        updateButton.setEnabled(false);
     }
 
     private void initSync() {
@@ -98,7 +127,9 @@ public class MainActivity extends Activity {
                     String key = it.next();
                     JSONObject data = alldata.getJSONObject(key);
                     JSONObject dataObj = data.getJSONObject("data");
-                    String task = dataObj.optString("data", "NO task name");
+                    Task task = new Task();
+                    task.setId(key);
+                    task.setTask(dataObj.optString("data", "NO task name"));
                     adapter.add(task);
                 }
             }

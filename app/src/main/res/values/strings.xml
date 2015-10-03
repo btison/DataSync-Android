@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">DataSyncClient</string>
+    <string name="update_button">Update</string>
 </resources>
