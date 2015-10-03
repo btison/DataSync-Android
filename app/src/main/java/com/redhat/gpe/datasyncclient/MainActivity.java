@@ -26,12 +26,14 @@ import com.feedhenry.sdk.sync.NotificationMessage;
 import org.json.fh.JSONObject;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 
 public class MainActivity extends Activity {
 
     private ProgressDialog progressDialog = null;
     private FHSyncClient syncClient = null;
+    private ArrayAdapter<String> adapter = null;
 
     private static final String DATAID = "tasks";
     private static final String TAG = "datasync";
@@ -42,27 +44,24 @@ public class MainActivity extends Activity {
         setContentView(R.layout.activity_main);
         final Context that = this;
         FH.setLogLevel(FH.LOG_LEVEL_VERBOSE);
-//        progressDialog = ProgressDialog.show(this, "Loading", "Please wait...");
-        initSync();
-        startSync();
-        //FH.init(this, new FHActCallback() {
-//            @Override
-//            public void success(FHResponse fhResponse) {
-//                progressDialog.dismiss();
-//            }
-//
-//            @Override
-//            public void fail(FHResponse fhResponse) {
-//                progressDialog.dismiss();
-//                Util.showMessage(that, "Error", fhResponse.getErrorMessage());
-//            }
-//        });
+        progressDialog = ProgressDialog.show(this, "Loading", "Please wait...");
+        FH.init(this, new FHActCallback() {
+            @Override
+            public void success(FHResponse fhResponse) {
+                progressDialog.dismiss();
+                initSync();
+                startSync();
+            }
+
+            @Override
+            public void fail(FHResponse fhResponse) {
+                progressDialog.dismiss();
+                Util.showMessage(that, "Error", fhResponse.getErrorMessage());
+            }
+        });
 
         List<String> values = new ArrayList<>();
-        values.add("Item 1");
-        values.add("Item 2");
-        values.add("Item 3");
-        ArrayAdapter<String> adapter = new ArrayAdapter<String>(this, R.layout.list_item,values);
+        adapter = new ArrayAdapter<String>(this, R.layout.list_item);
         ListView listView = (ListView) findViewById(R.id.listView);
         listView.setAdapter(adapter);
         listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
@@ -92,6 +91,16 @@ public class MainActivity extends Activity {
             @Override
             public void onSyncCompleted(NotificationMessage notificationMessage) {
                 Log.d(TAG, "Sync complete: " + notificationMessage);
+                JSONObject alldata = syncClient.list(DATAID);
+                adapter.clear();
+                Iterator<String> it = alldata.keys();
+                while(it.hasNext()){
+                    String key = it.next();
+                    JSONObject data = alldata.getJSONObject(key);
+                    JSONObject dataObj = data.getJSONObject("data");
+                    String task = dataObj.optString("data", "NO task name");
+                    adapter.add(task);
+                }
             }
 
             @Override
@@ -126,7 +135,7 @@ public class MainActivity extends Activity {
 
             @Override
             public void onSyncFailed(NotificationMessage notificationMessage) {
-                Log.d(TAG, "Sync complete: " + notificationMessage);
+                Log.d(TAG, "Sync failed: " + notificationMessage);
             }
 
             @Override
